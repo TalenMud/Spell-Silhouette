@@ -1,0 +1,20 @@
+{
+    "name": "SpellSystem.Editor",
+    "rootNamespace": "",
+    "references": [
+        "SpellSystem",
+        "Unity.XR.Hands",
+        "Unity.XR.Interaction.Toolkit"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
