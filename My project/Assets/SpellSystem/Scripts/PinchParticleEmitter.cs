@@ -2,8 +2,6 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.XR.Hands;
 
-// Handles emission on/off based on pinch gesture.
-// Position tracking is handled by PinchPointTracker on the same GameObject.
 public class PinchParticleEmitter : MonoBehaviour
 {
     [SerializeField] ParticleSystem particles;
@@ -11,11 +9,15 @@ public class PinchParticleEmitter : MonoBehaviour
     [SerializeField] float pinchThreshold = 0.7f;
 
     [Header("Particle Appearance")]
-    [SerializeField] float startSize = 0.018f;
-    [SerializeField] float startLifetime = 0.4f;
-    [SerializeField] float startSpeed = 0.08f;
-    [SerializeField] float emissionRate = 80f;
-    [SerializeField] Color particleColor = new Color(0.1f, 0.4f, 1f, 1f);
+    [SerializeField] float startSize = 0.02f;
+    [SerializeField] float startLifetime = 0.35f;
+    [SerializeField] float startSpeed = 0.06f;
+    [SerializeField] float emissionRate = 70f;
+    [ColorUsage(false, true)]
+    [SerializeField] Color particleColor = new Color(0.3f, 1.0f, 3.0f, 1f); // HDR blue — drives bloom glow
+
+    public static bool IsAnyHandPinching => s_pinchCount > 0;
+    static int s_pinchCount;
 
     XRHandSubsystem handSubsystem;
     bool isPinching;
@@ -25,19 +27,20 @@ public class PinchParticleEmitter : MonoBehaviour
         if (particles == null)
             particles = GetComponentInChildren<ParticleSystem>(true);
 
+        if (particles == null) return;
+
         ApplyParticleSettings();
+        ApplyGlowMaterial();
     }
 
     void ApplyParticleSettings()
     {
-        if (particles == null) return;
-
         var main = particles.main;
         main.startSize = startSize;
         main.startLifetime = startLifetime;
         main.startSpeed = startSpeed;
         main.startColor = particleColor;
-        main.maxParticles = 500;
+        main.maxParticles = 200;
         main.simulationSpace = ParticleSystemSimulationSpace.World;
 
         var emission = particles.emission;
@@ -47,7 +50,31 @@ public class PinchParticleEmitter : MonoBehaviour
         var shape = particles.shape;
         shape.enabled = true;
         shape.shapeType = ParticleSystemShapeType.Sphere;
-        shape.radius = 0.005f;
+        shape.radius = 0.006f;
+    }
+
+    void ApplyGlowMaterial()
+    {
+        var rend = particles.GetComponent<ParticleSystemRenderer>();
+        if (rend == null) return;
+
+        var existing = rend.sharedMaterial;
+        if (existing != null && existing.name != "Default-Particle" && existing.name != "Default-ParticleSystem")
+            return;
+
+        // URP Particles/Unlit with additive blending — lights up with Bloom post-processing
+        var shader = Shader.Find("Universal Render Pipeline/Particles/Unlit")
+                  ?? Shader.Find("Particles/Additive");
+        if (shader == null) return;
+
+        var mat = new Material(shader) { name = "PinchGlow_Runtime" };
+        mat.SetFloat("_Surface", 1);   // Transparent
+        mat.SetFloat("_Blend", 2);     // Additive
+        mat.SetFloat("_SrcBlend", (float)UnityEngine.Rendering.BlendMode.SrcAlpha);
+        mat.SetFloat("_DstBlend", (float)UnityEngine.Rendering.BlendMode.One);
+        mat.SetFloat("_ZWrite", 0);
+        mat.renderQueue = 3000;
+        rend.material = mat;
     }
 
     void OnEnable()
@@ -60,7 +87,7 @@ public class PinchParticleEmitter : MonoBehaviour
 
     void Update()
     {
-        if (handSubsystem == null) return;
+        if (handSubsystem == null || particles == null) return;
 
         var hand = handedness == Handedness.Right ? handSubsystem.rightHand : handSubsystem.leftHand;
         if (!hand.isTracked) { SetPinching(false); return; }
@@ -85,6 +112,7 @@ public class PinchParticleEmitter : MonoBehaviour
     {
         if (pinching == isPinching) return;
         isPinching = pinching;
+        s_pinchCount = Mathf.Max(0, s_pinchCount + (pinching ? 1 : -1));
 
         var emission = particles.emission;
         emission.enabled = pinching;

@@ -39,6 +39,13 @@ namespace SpellSystem
             var xrOrigin = mediator != null ? mediator.xrOrigin : null;
             if (xrOrigin == null || handSubsystem == null) return;
 
+            if (PinchParticleEmitter.IsAnyHandPinching)
+            {
+                smoothedSpeed = 0f;
+                TryEndLocomotion();
+                return;
+            }
+
             float leftSpeed = GetWristSpeed(handSubsystem.leftHand, ref leftWristPrev, ref leftInit);
             float rightSpeed = GetWristSpeed(handSubsystem.rightHand, ref rightWristPrev, ref rightInit);
 
