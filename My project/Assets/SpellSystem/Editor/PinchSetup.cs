@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 using UnityEditor;
 
@@ -46,6 +47,31 @@ public static class PinchSetup
         so.ApplyModifiedProperties();
 
         EditorUtility.SetDirty(pinchPoint);
+    }
+
+    [MenuItem("SpellSystem/Setup SpellCaster")]
+    public static void SetupSpellCaster()
+    {
+        var xrOrigin = GameObject.Find("XR Origin Hands (XR Rig)");
+        if (xrOrigin == null) { Debug.LogError("[SpellSystem] Could not find XR Origin Hands (XR Rig)"); return; }
+
+        var casterType = Type.GetType("SpellCaster");
+        if (casterType == null) { Debug.LogError("[SpellSystem] SpellCaster type not found — make sure scripts have compiled."); return; }
+
+        if (xrOrigin.GetComponent(casterType) == null)
+            Undo.AddComponent(xrOrigin, casterType);
+
+        // Wire the right-hand PinchParticleEmitter into castingHand
+        var rightPinchPoint = FindByPath("XR Origin Hands (XR Rig)/Camera Offset/Right Hand/Pinch Point Stabilized");
+        if (rightPinchPoint != null && rightPinchPoint.TryGetComponent<PinchParticleEmitter>(out var emitter))
+        {
+            var so = new SerializedObject(xrOrigin.GetComponent(casterType));
+            so.FindProperty("castingHand").objectReferenceValue = emitter;
+            so.ApplyModifiedProperties();
+        }
+
+        EditorUtility.SetDirty(xrOrigin);
+        Debug.Log("[SpellSystem] SpellCaster added and wired to right hand.");
     }
 
     static GameObject FindByPath(string path)

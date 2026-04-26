@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.XR.Hands;
@@ -14,10 +15,14 @@ public class PinchParticleEmitter : MonoBehaviour
     [SerializeField] float startSpeed = 0.06f;
     [SerializeField] float emissionRate = 70f;
     [ColorUsage(false, true)]
-    [SerializeField] Color particleColor = new Color(0.3f, 1.0f, 3.0f, 1f); // HDR blue — drives bloom glow
+    [SerializeField] Color particleColor = new Color(0.3f, 1.0f, 3.0f, 1f);
 
+    public Handedness Handedness => handedness;
     public static bool IsAnyHandPinching => s_pinchCount > 0;
     static int s_pinchCount;
+
+    public event Action OnPinchStart;
+    public event Action OnPinchEnd;
 
     XRHandSubsystem handSubsystem;
     bool isPinching;
@@ -62,14 +67,13 @@ public class PinchParticleEmitter : MonoBehaviour
         if (existing != null && existing.name != "Default-Particle" && existing.name != "Default-ParticleSystem")
             return;
 
-        // URP Particles/Unlit with additive blending — lights up with Bloom post-processing
         var shader = Shader.Find("Universal Render Pipeline/Particles/Unlit")
                   ?? Shader.Find("Particles/Additive");
         if (shader == null) return;
 
         var mat = new Material(shader) { name = "PinchGlow_Runtime" };
-        mat.SetFloat("_Surface", 1);   // Transparent
-        mat.SetFloat("_Blend", 2);     // Additive
+        mat.SetFloat("_Surface", 1);
+        mat.SetFloat("_Blend", 2);
         mat.SetFloat("_SrcBlend", (float)UnityEngine.Rendering.BlendMode.SrcAlpha);
         mat.SetFloat("_DstBlend", (float)UnityEngine.Rendering.BlendMode.One);
         mat.SetFloat("_ZWrite", 0);
@@ -118,8 +122,14 @@ public class PinchParticleEmitter : MonoBehaviour
         emission.enabled = pinching;
 
         if (pinching)
+        {
             particles.Play();
+            OnPinchStart?.Invoke();
+        }
         else
+        {
             particles.Stop(false, ParticleSystemStopBehavior.StopEmitting);
+            OnPinchEnd?.Invoke();
+        }
     }
 }
