@@ -11,15 +11,27 @@ public class SpellCaster : MonoBehaviour
     [SerializeField] float minConfidence = 0.65f;
     [SerializeField] float fireballSpeed = 8f;
 
+    [Header("Audio")]
+    [SerializeField] AudioClip spellCastClip;
+    [Range(0f, 1f)] [SerializeField] float spellCastVolume = 1f;
+
     readonly List<Vector2> gesturePoints = new List<Vector2>();
     readonly List<SpellTemplate> templates = new List<SpellTemplate>();
     XRHandSubsystem handSubsystem;
+    AudioSource castAudio;
     bool isGesturing;
 
     void Awake()
     {
         // Clockwise circle = Fireball gesture
         templates.Add(new SpellTemplate("Fireball", CirclePoints(64, clockwise: true)));
+
+        if (spellCastClip == null)
+            spellCastClip = Resources.Load<AudioClip>("Audio/spell_cast");
+
+        castAudio = gameObject.AddComponent<AudioSource>();
+        castAudio.playOnAwake = false;
+        castAudio.spatialBlend = 0f;
     }
 
     void OnEnable()
@@ -85,6 +97,9 @@ public class SpellCaster : MonoBehaviour
     {
         var cam = Camera.main;
         if (cam == null) return;
+
+        if (spellCastClip != null)
+            castAudio.PlayOneShot(spellCastClip, spellCastVolume);
 
         var go = GameObject.CreatePrimitive(PrimitiveType.Sphere);
         go.name = "Fireball";

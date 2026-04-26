@@ -17,6 +17,10 @@ public class PinchParticleEmitter : MonoBehaviour
     [ColorUsage(false, true)]
     [SerializeField] Color particleColor = new Color(0.3f, 1.0f, 3.0f, 1f);
 
+    [Header("Audio")]
+    [SerializeField] AudioClip castingPrepClip;
+    [Range(0f, 1f)] [SerializeField] float castingPrepVolume = 0.6f;
+
     public Handedness Handedness => handedness;
     public static bool IsAnyHandPinching => s_pinchCount > 0;
     static int s_pinchCount;
@@ -25,6 +29,7 @@ public class PinchParticleEmitter : MonoBehaviour
     public event Action OnPinchEnd;
 
     XRHandSubsystem handSubsystem;
+    AudioSource pinchAudio;
     bool isPinching;
 
     void Awake()
@@ -36,6 +41,20 @@ public class PinchParticleEmitter : MonoBehaviour
 
         ApplyParticleSettings();
         ApplyGlowMaterial();
+        ApplyAudio();
+    }
+
+    void ApplyAudio()
+    {
+        if (castingPrepClip == null)
+            castingPrepClip = Resources.Load<AudioClip>("Audio/casting_prep_sound");
+
+        pinchAudio = gameObject.AddComponent<AudioSource>();
+        pinchAudio.clip = castingPrepClip;
+        pinchAudio.loop = true;
+        pinchAudio.playOnAwake = false;
+        pinchAudio.spatialBlend = 0f;
+        pinchAudio.volume = castingPrepVolume;
     }
 
     void ApplyParticleSettings()
@@ -124,11 +143,13 @@ public class PinchParticleEmitter : MonoBehaviour
         if (pinching)
         {
             particles.Play();
+            if (pinchAudio != null && pinchAudio.clip != null) pinchAudio.Play();
             OnPinchStart?.Invoke();
         }
         else
         {
             particles.Stop(false, ParticleSystemStopBehavior.StopEmitting);
+            if (pinchAudio != null) pinchAudio.Stop();
             OnPinchEnd?.Invoke();
         }
     }
