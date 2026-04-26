@@ -110,13 +110,6 @@ public class SpellCaster : MonoBehaviour
         if (spellCastClip != null)
             castAudio.PlayOneShot(spellCastClip, spellCastVolume);
 
-        var go = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-        go.name = "Fireball";
-        go.transform.SetPositionAndRotation(
-            cam.transform.position + cam.transform.forward * 0.4f,
-            cam.transform.rotation);
-        go.transform.localScale = Vector3.one * 0.12f;
-        Destroy(go.GetComponent<Collider>());
         var spawnPos = cam.transform.position + cam.transform.forward * 0.4f;
         var spawnRot = cam.transform.rotation;
 
