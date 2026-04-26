@@ -33,7 +33,7 @@ using UnityEngine;
  * }
  * ================================================================================= */
 
-public static class GestureRecognizer
+public static class GestureRecogniser
 {
     public struct RecognitionResult
     {
