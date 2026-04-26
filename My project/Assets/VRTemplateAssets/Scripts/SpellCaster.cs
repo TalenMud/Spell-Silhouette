@@ -8,6 +8,7 @@ using UnityEngine.XR.Hands;
 public class SpellCaster : MonoBehaviour
 {
     [SerializeField] PinchParticleEmitter castingHand;
+    [SerializeField] GameObject fireballPrefab;
     [SerializeField] float minConfidence = 0.65f;
     [SerializeField] float fireballSpeed = 8f;
 
@@ -32,6 +33,9 @@ public class SpellCaster : MonoBehaviour
         castAudio = gameObject.AddComponent<AudioSource>();
         castAudio.playOnAwake = false;
         castAudio.spatialBlend = 0f;
+        
+        // Straight line = Force Push gesture
+        templates.Add(new SpellTemplate("ForcePush", StraightLinePoints(64)));
     }
 
     void OnEnable()
@@ -90,7 +94,12 @@ public class SpellCaster : MonoBehaviour
         Debug.Log($"[SpellCaster] Gesture: {result.GestureName}  Confidence: {result.Confidence:F2}");
 
         if (result.Confidence >= minConfidence)
-            CastFireball();
+        {
+            if (result.GestureName == "ForcePush")
+                CastForcePush();
+            else
+                CastFireball();
+        }
     }
 
     void CastFireball()
@@ -108,26 +117,58 @@ public class SpellCaster : MonoBehaviour
             cam.transform.rotation);
         go.transform.localScale = Vector3.one * 0.12f;
         Destroy(go.GetComponent<Collider>());
+        var spawnPos = cam.transform.position + cam.transform.forward * 0.4f;
+        var spawnRot = cam.transform.rotation;
 
-        var rend = go.GetComponent<Renderer>();
-        var shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
-        if (shader != null)
+        GameObject go;
+        if (fireballPrefab != null)
         {
-            var mat = new Material(shader);
-            mat.SetColor("_BaseColor", new Color(1f, 0.1f, 0f));
-            mat.SetColor("_EmissionColor", new Color(3f, 0.35f, 0f)); // HDR drives bloom
-            mat.EnableKeyword("_EMISSION");
-            rend.material = mat;
+            go = Instantiate(fireballPrefab, spawnPos, spawnRot);
+        }
+        else
+        {
+            // Fallback: plain red sphere if no prefab assigned
+            go = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            go.transform.SetPositionAndRotation(spawnPos, spawnRot);
+            go.transform.localScale = Vector3.one * 0.12f;
+            var shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
+            if (shader != null)
+            {
+                var mat = new Material(shader);
+                mat.SetColor("_BaseColor", new Color(1f, 0.1f, 0f));
+                mat.SetColor("_EmissionColor", new Color(3f, 0.35f, 0f));
+                mat.EnableKeyword("_EMISSION");
+                go.GetComponent<Renderer>().material = mat;
+            }
         }
 
-        var light = go.AddComponent<Light>();
-        light.type = LightType.Point;
-        light.color = new Color(1f, 0.25f, 0f);
-        light.intensity = 3f;
-        light.range = 4f;
-
+        go.name = "Fireball";
         var proj = go.AddComponent<FireballProjectile>();
         proj.speed = fireballSpeed;
+    }
+
+    void CastForcePush()
+    {
+        var cam = Camera.main;
+        if (cam == null) return;
+
+        var spawnPos = cam.transform.position + cam.transform.forward * 0.4f;
+        var spawnRot = cam.transform.rotation;
+
+        var go = new GameObject("ForcePush");
+        go.transform.SetPositionAndRotation(spawnPos, spawnRot);
+
+        // Twice the diameter of the fireball fallback sphere (0.12 * 2 = 0.24)
+        var col = go.AddComponent<SphereCollider>();
+        col.radius = 0.12f;
+
+        var rb = go.AddComponent<Rigidbody>();
+        rb.useGravity = false;
+        rb.isKinematic = true;
+        rb.collisionDetectionMode = CollisionDetectionMode.ContinuousSpeculative;
+
+        var proj = go.AddComponent<ForcePushProjectile>();
+        proj.speed = fireballSpeed * 1.2f;
     }
 
     static List<Vector2> CirclePoints(int n, bool clockwise)
@@ -137,6 +178,17 @@ public class SpellCaster : MonoBehaviour
         {
             float angle = (clockwise ? -1f : 1f) * 2f * Mathf.PI * i / n;
             pts.Add(new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * 100f);
+        }
+        return pts;
+    }
+
+    static List<Vector2> StraightLinePoints(int n)
+    {
+        var pts = new List<Vector2>(n);
+        for (int i = 0; i < n; i++)
+        {
+            float t = (float)i / (n - 1);
+            pts.Add(new Vector2(Mathf.Lerp(-100f, 100f, t), 0f));
         }
         return pts;
     }
